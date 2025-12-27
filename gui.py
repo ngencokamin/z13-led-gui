@@ -417,16 +417,6 @@ class App:
 
         menu.append(Gtk.SeparatorMenuItem())
 
-        def _tray_apply(_item: Gtk.MenuItem) -> None:
-            ok = self.win.apply_state(save=True)
-            if ok:
-                self.win.hide()
-                self.win.set_visible(False)
-
-        apply_item = Gtk.MenuItem(label="Apply")
-        apply_item.connect("activate", _tray_apply)
-        menu.append(apply_item)
-
         quit_item = Gtk.MenuItem(label="Quit")
         quit_item.connect("activate", lambda *_: Gtk.main_quit())
         menu.append(quit_item)
