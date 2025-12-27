@@ -19,10 +19,10 @@ mkdir -p "$DESKTOP_DIR"
 install -m 755 gui.py "$BIN_DIR/z13-led-gui"
 
 # Install icons
-install -m 644 assets/icons/rog.svg \
+install -m 644 icons/rog.svg \
   "$ICON_DIR/scalable/apps/rog.svg"
 
-install -m 644 assets/icons/rog-symbolic.svg \
+install -m 644 icons/rog-symbolic.svg \
   "$ICON_DIR/symbolic/apps/rog-symbolic.svg"
 
 # Install desktop entry

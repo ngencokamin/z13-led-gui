@@ -2,7 +2,7 @@
 
 A lightweight GTK tray application with a graphical interface for controlling ASUS ROG Flow Z13 lighting via `z13-led`.
 
-This project provides a system tray interface for managing keyboard and lightbar lighting on the ROG Flow Z13. It acts as a frontend for the upstream [`z13-led`](https://github.com/rpheuts/z13) utility and does **not** bundle or replace it.
+This project provides a system tray interface for managing keyboard and lightbar lighting on the ROG Flow Z13. It acts as a frontend for the upstream [`z13-led`](https://github.com/rpheuts/z13) utility and does **not** bundle or replace it.![Screenshot](assets/screenshot.png)
 
 ---
 
@@ -12,7 +12,7 @@ This project provides a system tray interface for managing keyboard and lightbar
 - Controls keyboard and lightbar lighting
 - Preset support and live preview
 - Symbolic tray icon (adapts automatically to light/dark themes)
-- Works on Wayland and X11
+- Works on Wayland and X11 (in theory, X11 untested)
 - No root privileges required for the GUI
 - Compatible with immutable systems (Bazzite / Silverblue)
 
