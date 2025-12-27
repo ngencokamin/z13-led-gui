@@ -1,4 +1,13 @@
 #!/usr/bin/python3
+"""
+Z13 LED GUI - A GTK tray application for controlling ASUS ROG Flow Z13 lighting.
+
+This module provides a graphical interface for managing keyboard and lightbar
+lighting on the ROG Flow Z13 laptop. It acts as a frontend to the 'z13-led'
+utility, handling user interactions and state management while delegating
+hardware control to the external binary.
+"""
+
 import json
 import os
 import subprocess
@@ -39,15 +48,18 @@ PRESETS: Dict[str, Dict[str, object]] = {
 
 
 def clamp8(x: float) -> int:
+    """Clamp a float value to 0-1 range and convert to 8-bit integer (0-255)."""
     v = int(round(max(0.0, min(1.0, x)) * 255.0))
     return max(0, min(255, v))
 
 
 def rgba_to_rgb8(rgba: Gdk.RGBA) -> Tuple[int, int, int]:
+    """Convert a Gdk.RGBA to an RGB tuple of 8-bit integers."""
     return (clamp8(rgba.red), clamp8(rgba.green), clamp8(rgba.blue))
 
 
 def rgb8_to_rgba(r: int, g: int, b: int) -> Gdk.RGBA:
+    """Convert RGB 8-bit integers to a Gdk.RGBA."""
     rgba = Gdk.RGBA()
     rgba.red = max(0, min(255, r)) / 255.0
     rgba.green = max(0, min(255, g)) / 255.0
@@ -55,12 +67,15 @@ def rgb8_to_rgba(r: int, g: int, b: int) -> Gdk.RGBA:
     rgba.alpha = 1.0
     return rgba
 
+
 def run_cmd(args: list) -> None:
+    """Run a subprocess command, raising an exception on failure."""
     subprocess.run(args, check=True)
 
 
 @dataclass
 class State:
+    """Application state for LED settings and preferences."""
     kb_on: bool = True
     kb_rgb: Tuple[int, int, int] = (255, 255, 255)
     lb_on: bool = True
@@ -69,6 +84,7 @@ class State:
 
     @staticmethod
     def load() -> "State":
+        """Load state from JSON file, with fallbacks for missing or corrupted data."""
         try:
             with open(STATE_PATH, "r", encoding="utf-8") as f:
                 raw = json.load(f)
@@ -86,6 +102,7 @@ class State:
             return State()
 
     def save(self) -> None:
+        """Save current state to JSON file."""
         os.makedirs(CONFIG_DIR, exist_ok=True)
         payload = {
             "kb_on": self.kb_on,
@@ -99,6 +116,8 @@ class State:
 
 
 class Z13LedGui(Gtk.Window):
+    """Main GUI window for LED control settings."""
+
     def __init__(self, state: State):
         super().__init__(title="ROG Flow Z13 LED Control")
         self.set_border_width(14)
@@ -204,6 +223,7 @@ class Z13LedGui(Gtk.Window):
         self.sync_controls_from_state()
 
     def sync_controls_from_state(self) -> None:
+        """Update UI controls to reflect the current state."""
         self.kb_color.set_sensitive(self.state.kb_on)
         self.lb_color.set_sensitive(self.state.lb_on)
 
@@ -214,6 +234,7 @@ class Z13LedGui(Gtk.Window):
         self.preview_check.set_active(self.state.live_preview)
 
     def schedule_live_apply(self) -> None:
+        """Schedule a debounced live preview apply if enabled."""
         if not self.state.live_preview:
             return
 
@@ -229,29 +250,35 @@ class Z13LedGui(Gtk.Window):
         self._apply_timeout_id = GLib.timeout_add(self._apply_debounce_ms, _do_apply)
 
     def on_preview_toggled(self, _check: Gtk.CheckButton) -> None:
+        """Handle live preview checkbox toggle."""
         self.state.live_preview = bool(self.preview_check.get_active())
         # Persist this preference immediately.
         self.state.save()
 
     def on_kb_state_changed(self, _combo: Gtk.ComboBoxText) -> None:
+        """Handle keyboard on/off state change."""
         self.state.kb_on = (self.kb_combo.get_active_text() == "On")
         self.kb_color.set_sensitive(self.state.kb_on)
         self.schedule_live_apply()
 
     def on_lb_state_changed(self, _combo: Gtk.ComboBoxText) -> None:
+        """Handle lightbar on/off state change."""
         self.state.lb_on = (self.lb_combo.get_active_text() == "On")
         self.lb_color.set_sensitive(self.state.lb_on)
         self.schedule_live_apply()
 
     def on_kb_color_changed(self, _btn: Gtk.ColorButton) -> None:
+        """Handle keyboard color change."""
         self.state.kb_rgb = rgba_to_rgb8(self.kb_color.get_rgba())
         self.schedule_live_apply()
 
     def on_lb_color_changed(self, _btn: Gtk.ColorButton) -> None:
+        """Handle lightbar color change."""
         self.state.lb_rgb = rgba_to_rgb8(self.lb_color.get_rgba())
         self.schedule_live_apply()
 
     def on_preset_clicked(self, _btn: Gtk.Button, name: str) -> None:
+        """Handle preset button click."""
         preset = PRESETS[name]
         self.state.kb_on = bool(preset["kb_on"])
         self.state.lb_on = bool(preset["lb_on"])
@@ -263,12 +290,14 @@ class Z13LedGui(Gtk.Window):
         self.schedule_live_apply()
 
     def on_apply_clicked(self, _btn: Gtk.Button) -> None:
+        """Handle apply button click."""
         ok = self.apply_state(save=True)
         if ok:
             self.hide()
             self.set_visible(False)  # extra nudge for some shells/compositors
 
     def apply_state(self, save: bool) -> bool:
+        """Apply the current state to the hardware via z13-led commands."""
         try:
             if self.state.kb_on:
                 r, g, b = self.state.kb_rgb
@@ -297,6 +326,7 @@ class Z13LedGui(Gtk.Window):
         return False
 
     def show_error(self, msg: str) -> None:
+        """Show an error dialog with the given message."""
         dialog = Gtk.MessageDialog(
             parent=self,
             flags=0,
@@ -310,6 +340,8 @@ class Z13LedGui(Gtk.Window):
 
 
 class App:
+    """Main application class managing the GUI window and system tray indicator."""
+
     def __init__(self):
         self.state = State.load()
         self.win = Z13LedGui(self.state)
@@ -321,6 +353,7 @@ class App:
 
 
     def setup_indicator(self) -> None:
+        """Set up the system tray indicator with menu."""
         icon_name = "rog-symbolic"
 
         # Fallback if icon is not installed
@@ -369,6 +402,7 @@ class App:
         self.indicator.set_menu(menu)
 
     def on_preset_menu(self, _item: Gtk.MenuItem, name: str) -> None:
+        """Handle preset selection from tray menu."""
         preset = PRESETS[name]
         self.state.kb_on = bool(preset["kb_on"])
         self.state.lb_on = bool(preset["lb_on"])
@@ -380,16 +414,19 @@ class App:
         self.win.apply_state(save=True)
 
     def show_window(self) -> None:
+        """Show and present the main GUI window."""
         self.win.show_all()
         self.win.present()
 
     def on_delete(self, *_args) -> bool:
+        """Handle window close event - hide instead of quit to keep tray alive."""
         # Hide instead of exiting so tray stays alive.
         self.win.hide()
         return True
 
 
 def main() -> int:
+    """Main entry point for the application."""
     app = App()
     app.show_window()
     Gtk.main()
