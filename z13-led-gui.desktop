@@ -1,9 +1,8 @@
 [Desktop Entry]
-Type=Application
 Name=Z13 LED GUI
-Comment=Control ASUS ROG Flow Z13 lighting
-Exec=z13-led-gui
-Icon=rog
+Exec=sh -c 'exec "$HOME/.local/bin/z13-led-gui"'
+Type=Application
 Terminal=false
+Comment=Control ASUS ROG Flow Z13 lighting
 Categories=Utility;HardwareSettings;
-StartupNotify=false
+Icon=rog
