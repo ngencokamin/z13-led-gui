@@ -17,6 +17,10 @@ from typing import Dict, Tuple, Optional, Callable
 import gi
 gi.require_version("Gtk", "3.0")
 
+import shutil
+from pathlib import Path
+
+
 HAVE_INDICATOR = True
 try:
     gi.require_version("AppIndicator3", "0.1")
@@ -73,6 +77,24 @@ def run_cmd(args: list) -> None:
     subprocess.run(args, check=True)
 
 
+def find_z13_led() -> Optional[str]:
+    """
+    Locate the z13-led binary in a way that works for GUI apps
+    launched outside of a shell (GNOME, Wayland, etc).
+    """
+    # 1. Try PATH first
+    path = shutil.which("z13-led")
+    if path:
+        return path
+
+    # 2. Fallback to ~/.local/bin
+    local = Path.home() / ".local" / "bin" / "z13-led"
+    if local.exists() and local.is_file():
+        return str(local)
+
+    return None
+
+
 @dataclass
 class State:
     """Application state for LED settings and preferences."""
@@ -118,12 +140,14 @@ class State:
 class Z13LedGui(Gtk.Window):
     """Main GUI window for LED control settings."""
 
-    def __init__(self, state: State):
+    def __init__(self, state: State, z13_led: Optional[str]):
         super().__init__(title="ROG Flow Z13 LED Control")
         self.set_border_width(14)
         self.set_default_size(540, -1)
 
         self.state = state
+        
+        self.z13_led = z13_led
 
         # Debounce handle for live preview applies
         self._apply_timeout_id: Optional[int] = None
@@ -298,18 +322,26 @@ class Z13LedGui(Gtk.Window):
 
     def apply_state(self, save: bool) -> bool:
         """Apply the current state to the hardware via z13-led commands."""
+        if not self.z13_led:
+            self.show_error(
+                "Could not find 'z13-led'.\n\n"
+                "Please install it and ensure it exists at:\n"
+                "~/.local/bin/z13-led"
+            )
+            return False
+
         try:
             if self.state.kb_on:
                 r, g, b = self.state.kb_rgb
-                run_cmd(["z13-led", "--keyboard", "--color", str(r), str(g), str(b)])
+                run_cmd([self.z13_led, "--keyboard", "--color", str(r), str(g), str(b)])
             else:
-                run_cmd(["z13-led", "--keyboard", "--color", "0", "0", "0"])
+                run_cmd([self.z13_led, "--keyboard", "--color", "0", "0", "0"])
 
             if self.state.lb_on:
                 r, g, b = self.state.lb_rgb
-                run_cmd(["z13-led", "--lightbar", "--color", str(r), str(g), str(b)])
+                run_cmd([self.z13_led, "--lightbar", "--color", str(r), str(g), str(b)])
             else:
-                run_cmd(["z13-led", "--lightbar", "--off"])
+                run_cmd([self.z13_led, "--lightbar", "--off"])
 
             if save:
                 self.state.save()
@@ -318,12 +350,11 @@ class Z13LedGui(Gtk.Window):
 
         except subprocess.CalledProcessError as e:
             self.show_error(f"Command failed:\n{e}")
-        except FileNotFoundError:
-            self.show_error("Could not find 'z13-led' in PATH.")
         except Exception as e:
             self.show_error(f"Unexpected error:\n{e}")
 
         return False
+
 
     def show_error(self, msg: str) -> None:
         """Show an error dialog with the given message."""
@@ -344,8 +375,11 @@ class App:
 
     def __init__(self):
         self.state = State.load()
-        self.win = Z13LedGui(self.state)
+        self.z13_led = find_z13_led()
+        
+        self.win = Z13LedGui(self.state, self.z13_led)
         self.win.connect("delete-event", self.on_delete)
+
 
         self.indicator = None
         if HAVE_INDICATOR:
@@ -366,7 +400,6 @@ class App:
             AppIndicator3.IndicatorCategory.APPLICATION_STATUS,
         )
 
-        self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
         self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
 
         menu = Gtk.Menu()
