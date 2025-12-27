@@ -17,3 +17,5 @@ build/
 # Logs
 *.log
 
+# Copilot
+.github/copilot-instructions.md
