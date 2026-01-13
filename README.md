@@ -1,3 +1,7 @@
+# IMPORTANT UPDATE
+
+This project is deprecated. You should use [HandHeld Daemon](https://github.com/hhd-dev/hhd) with the bazzite kernel instead. It does everything that this does, and more, significantly better. I am keeping this repo up for the odd case where someone desperately wants to avoid hhd and/or the bazzite kernel, but it will not be maintained. 
+
 # Z13 LED GUI
 
 A lightweight GTK tray application with a graphical interface for controlling ASUS ROG Flow Z13 lighting via `z13-led`.
